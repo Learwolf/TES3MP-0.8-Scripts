@@ -15,6 +15,9 @@
 		have matching letter patterns. (I.E., "vivec" will prevent all cells with vivec in the name from being 
 		reset via this script.)
 	
+	There are two commands for staff members to use. They are: 
+		`/pushresets` (skips waiting for the timer, and checks all cells that have a reset timer to see if they can be reset.)
+		`/reset "InsertACellNameHere"`(instantly resets a specific cell if it is in the reset timer list. )
 	Enjoy!
 	
 	INSTALLATION:
@@ -43,7 +46,7 @@ local interiorCellResetTime = 14400 -- Interior cells reset every 14400 seconds 
 -- For the above two times, they will push a cell reset upon loading up a respective cell for the first 
 -- time, x amount of seconds from when it was first initialized.
 
-
+local requiredStaffRank = 1 -- Required staff rank to manually force resets. 1 = Moderator, 2 = Admin, 3 = Owner.
 
 -- Exact cell names:
 periodicCellResets.exemptCellNamesExact = { -- Exact cell names included in this list are not affected by the automated cell reset times in this script.
@@ -116,6 +119,8 @@ local nameLikeCellExemptions = function(cellDescription)
 end
 
 local doCellReset = function(pid, cellDescription)
+	
+	local txt = color.Error.."That cell is not in the reset table.\n"
 	if cellResetTimers[cellDescription] ~= nil then
 		
 		local unloadAtEnd
@@ -147,13 +152,13 @@ local doCellReset = function(pid, cellDescription)
 		tableHelper.cleanNils(cellResetTimers)
 		SaveCellResetTimers()
 		
-	else
-		tes3mp.SendMessage(pid, color.Yellow.."[CellResets]: "..color.Error.."That cell is not in the reset table.\n")
+		txt = color.Green..cellDescription..color.White.." has been reset and is no longer in the list of cells to reset."
 	end
+	tes3mp.SendMessage(pid, color.Yellow.."[CellResets]: "..txt.."\n")
 end
 
 local pushForCellReset = function(pid, cmd)
-	if Players[pid].data.settings.staffRank >= 1 then
+	if Players[pid].data.settings.staffRank >= requiredStaffRank then
 		
 		if cmd[2] == nil then
 			tes3mp.SendMessage(pid, 'Invalid inputs! Use /resetcell "Cell Name"\n')
@@ -163,7 +168,7 @@ local pushForCellReset = function(pid, cmd)
 		local inputConcatenation = tableHelper.concatenateFromIndex(cmd, 2)
 		local cellDescription = string.gsub(inputConcatenation, '"', '')
 
-		logicHandler.ResetCell(pid, cellDescription)
+		doCellReset(pid, cellDescription)
 		
 	end
 end
@@ -174,7 +179,7 @@ local pushCellResetsEarly = function(pid, cmd)
 
 	if Players[pid] ~= nil and Players[pid]:IsLoggedIn() then
 		
-		if Players[pid].data.settings.staffRank >= 1 then
+		if Players[pid].data.settings.staffRank >= requiredStaffRank then
 			
 			local markTime = os.time()
 			local doSave = false
@@ -326,15 +331,5 @@ end
 GlobalCellResetTimerUpdate = periodicCellResets.UpdateResetTimers
 GlobalCellResetTimer = tes3mp.CreateTimer("GlobalCellResetTimerUpdate", time.seconds(cellResetTimeCheck))
 tes3mp.StartTimer(GlobalCellResetTimer)
-
-
-local function OnServerPostInit(eventStatus)
-	-- Lets prevent cell resets if they include player home names:
-	if npHousing ~= nil then
-		tableHelper.insertValueIfMissing(periodicCellResets.exemptCellNamesLike, npHousing.prefixAvailableHome)
-		tableHelper.insertValueIfMissing(periodicCellResets.exemptCellNamesLike, npHousing.prefixPlayerHome)
-	end
-end
-customEventHooks.registerHandler("OnServerPostInit", OnServerPostInit)
 
 return periodicCellResets
