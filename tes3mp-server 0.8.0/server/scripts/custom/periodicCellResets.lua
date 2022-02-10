@@ -1,6 +1,6 @@
 --[[
 	Lear's Periodic Cell Reset Script
-		version 1.00 (for TES3MP 0.8)
+		version 1.01 (for TES3MP 0.8)
 	
 	DESCRIPTION:
 	This simple script allows cells to be periodically reset in game without the need for a server 
@@ -18,7 +18,7 @@
 	There are two commands for staff members to use. They are: 
 		`/pushresets` (skips waiting for the timer, and checks all cells that have a reset timer to see if they can be reset.)
 		`/reset "InsertACellNameHere"`(instantly resets a specific cell if it is in the reset timer list. )
-	Enjoy!
+		
 	
 	INSTALLATION:
 		1) Place this file as `periodicCellResets.lua` inside your TES3MP servers `server\scripts\custom` folder.
@@ -28,6 +28,11 @@
 				require("custom.periodicCellResets.lua")
 		4) BE SURE THERE IS NO `--` SYMBOLS TO THE LEFT OF IT, ELSE IT WILL NOT WORK.
 		5) Save `customScripts.lua` and restart your server.
+	
+	
+	VERSION HISTORY:
+		1.01 (2/10/2022)	- Removes a cells timer on server startup, if the cell does not exist in the servers cell folder.
+		1.00 (2/9/2022)		- Initial public release.
 --]]
 
 
@@ -90,8 +95,28 @@ local LoadCellResetTimers = function()
 	end
 end
 
+local removeDeletedCellsFromResetTimers = function()
+	
+	local doSave = false
+	tes3mp.LogAppend(enumerations.log.INFO, "-=-=-CHECKING RESET TIMER CELLS-=-=-")
+	for cellDescription,_ in pairs(cellResetTimers) do
+		if cellDescription ~= nil and tes3mp.GetCaseInsensitiveFilename(tes3mp.GetDataPath() .. "/cell/", cellDescription .. ".json") == "invalid" then
+			cellResetTimers[cellDescription] = nil
+			tes3mp.LogAppend(enumerations.log.INFO, "Removing stored reset timer for \""..cellDescription.."\" since the cell no longer exists.")
+			doSave = true
+		end
+	end
+	
+	if doSave then
+		tableHelper.cleanNils(cellResetTimers)
+		SaveCellResetTimers()
+	end
+	
+end
+
 customEventHooks.registerHandler("OnServerPostInit", function(eventStatus)
 	LoadCellResetTimers()
+	removeDeletedCellsFromResetTimers()
 end)
 
 local specificCellFunctionsToAlwaysRun = function(pid, cellDescription)
