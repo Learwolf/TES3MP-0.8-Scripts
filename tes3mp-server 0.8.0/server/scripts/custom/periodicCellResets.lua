@@ -98,12 +98,7 @@ local specificCellFunctionsToAlwaysRun = function(pid, cellDescription)
 	
 	-- You can add functions here to always run when you enter a cell.
 	
-	if cellDescription == "Dren Plantation, Dren's Villa" then
-		-- replace the inventory of NPC "galos farethi" to remove daedric and ebony items. Give him orc gear instead?
-		logicHandler.DeleteObject(pid, cellDescription, "179558-0", true) -- "daedric_greaves"
-		logicHandler.DeleteObject(pid, cellDescription, "179557-0", true) -- "ebony_cuirass"
-		
-	end
+	
 	
 end
 
