@@ -1,6 +1,6 @@
 --[[
 	Lear's Periodic Cell Reset Script
-		version 1.01 (for TES3MP 0.8)
+		version 1.02 (for TES3MP 0.8)
 	
 	DESCRIPTION:
 	This simple script allows cells to be periodically reset in game without the need for a server 
@@ -31,6 +31,7 @@
 	
 	
 	VERSION HISTORY:
+		1.02 (2/11/2022)	- Fixed issue with cell file names that use ; instead of :
 		1.01 (2/10/2022)	- Removes a cells timer on server startup, if the cell does not exist in the servers cell folder.
 		1.00 (2/9/2022)		- Initial public release.
 --]]
@@ -100,9 +101,10 @@ local removeDeletedCellsFromResetTimers = function()
 	local doSave = false
 	tes3mp.LogAppend(enumerations.log.INFO, "-=-=-CHECKING RESET TIMER CELLS-=-=-")
 	for cellDescription,_ in pairs(cellResetTimers) do
-		if cellDescription ~= nil and tes3mp.GetCaseInsensitiveFilename(tes3mp.GetDataPath() .. "/cell/", cellDescription .. ".json") == "invalid" then
-			cellResetTimers[cellDescription] = nil
-			tes3mp.LogAppend(enumerations.log.INFO, "Removing stored reset timer for \""..cellDescription.."\" since the cell no longer exists.")
+		local fixedCellDescription = fileHelper.fixFilename(cellDescription)
+		if fixedCellDescription ~= nil and tes3mp.GetCaseInsensitiveFilename(tes3mp.GetDataPath() .. "/cell/", fixedCellDescription .. ".json") == "invalid" then
+			cellResetTimers[fixedCellDescription] = nil
+			tes3mp.LogAppend(enumerations.log.INFO, "Removing stored reset timer for \""..fixedCellDescription.."\" since the cell no longer exists.")
 			doSave = true
 		end
 	end
