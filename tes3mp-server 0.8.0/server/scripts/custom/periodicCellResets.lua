@@ -25,7 +25,7 @@
 		2) Open your `customScripts.lua` file in a text editor. 
 				(It can be found in `server\scripts` folder.)
 		3) Add the below line to your `customScripts.lua` file:
-				require("custom.periodicCellResets.lua")
+				require("custom.periodicCellResets")
 		4) BE SURE THERE IS NO `--` SYMBOLS TO THE LEFT OF IT, ELSE IT WILL NOT WORK.
 		5) Save `customScripts.lua` and restart your server.
 	
