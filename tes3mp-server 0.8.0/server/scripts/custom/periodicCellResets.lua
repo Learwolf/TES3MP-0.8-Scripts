@@ -1,6 +1,6 @@
 --[[
 	Lear's Periodic Cell Reset Script
-		version 1.02 (for TES3MP 0.8)
+		version 1.03 (for TES3MP 0.8)
 	
 	DESCRIPTION:
 	This simple script allows cells to be periodically reset in game without the need for a server 
@@ -16,9 +16,9 @@
 		reset via this script.)
 	
 	There are two commands for staff members to use. They are: 
-		`/pushresets` (skips waiting for the timer, and checks all cells that have a reset timer to see if they can be reset.)
+		`/pushresets` (skips waiting for the global timer, and checks all cells that have a reset timer to see if they can be reset now.)
 		`/reset "InsertACellNameHere"`(instantly resets a specific cell if it is in the reset timer list. )
-		
+		`/resetall` (Will forcibly reset every cell that does not currently have an online player inside it.)
 	
 	INSTALLATION:
 		1) Place this file as `periodicCellResets.lua` inside your TES3MP servers `server\scripts\custom` folder.
@@ -31,6 +31,7 @@
 	
 	
 	VERSION HISTORY:
+		1.03 (2/18/2022)	- Added a `/resetall` command. Added confirmation text for /pushresets command. Optional `/runstartup` command automatically run for the first player to log on after the server has started up.
 		1.02 (2/11/2022)	- Fixed issue with cell file names that use ; instead of :
 		1.01 (2/10/2022)	- Removes a cells timer on server startup, if the cell does not exist in the servers cell folder.
 		1.00 (2/9/2022)		- Initial public release.
@@ -52,7 +53,10 @@ local interiorCellResetTime = 14400 -- Interior cells reset every 14400 seconds 
 -- For the above two times, they will push a cell reset upon loading up a respective cell for the first 
 -- time, x amount of seconds from when it was first initialized.
 
+local runStartupCommandsAutomatically = false -- Setting this to `true` will ensure the `/runstartup` gets run whenever the server is restarted.
+
 local requiredStaffRank = 1 -- Required staff rank to manually force resets. 1 = Moderator, 2 = Admin, 3 = Owner.
+
 
 -- Exact cell names:
 periodicCellResets.exemptCellNamesExact = { -- Exact cell names included in this list are not affected by the automated cell reset times in this script.
@@ -84,6 +88,16 @@ periodicCellResets.exemptCellNamesLike = { -- Cell names that match strings incl
 --]]
 
 local cellResetTimers = jsonInterface.load("custom/cellResetTimers.json")
+
+local startupCommandsHaveRun = false
+local runStartupCommands = function(pid)
+	for _, scriptName in pairs(config.worldStartupScripts) do
+        logicHandler.RunConsoleCommandOnPlayer(pid, "startscript " .. scriptName, false)
+    end
+	
+    WorldInstance.coreVariables.hasRunStartupScripts = true
+	startupCommandsHaveRun = true
+end
 
 local SaveCellResetTimers = function()
 	jsonInterface.save("custom/cellResetTimers.json", cellResetTimers)
@@ -206,8 +220,13 @@ local pushCellResetsEarly = function(pid, cmd)
 			local markTime = os.time()
 			local doSave = false
 			
-			if not tableHelper.isEmpty(cellResetTimers) then
+			local txt = color.Error.."There are no cells that are ready to be reset.\n"
 			
+			local cellsReset = 0
+			local cellLoaded = 0
+			
+			if not tableHelper.isEmpty(cellResetTimers) then
+				
 				for cellDescription,cellResetTime in pairs(cellResetTimers) do
 					if markTime >= cellResetTime then
 						
@@ -239,13 +258,32 @@ local pushCellResetsEarly = function(pid, cmd)
 							
 							cellResetTimers[cellDescription] = nil
 							
+							cellsReset = cellsReset + 1
+							
 							doSave = true
 							
+						else
+							cellLoaded = cellLoaded + 1
 						end
 					end
 				end
-			
+				
 			end
+			
+			
+			if cellsReset > 1 then
+				txt = color.White..cellsReset..color.Yellow.." cells have been reset."
+			elseif cellsReset == 1 then
+				txt = color.White.."1"..color.Yellow.." cell has been reset."
+			end
+			
+			if cellLoaded > 1 then
+				txt = color.White..cellLoaded..color.Error.." cells could not be reset because they have players in them."
+			elseif cellLoaded == 1 then
+				txt = color.White..cellLoaded..color.Error.." cell could not be reset because it has players in it."
+			end
+			
+			tes3mp.SendMessage(pid, txt.."\n")
 			
 			if doSave then
 				tableHelper.cleanNils(cellResetTimers)
@@ -258,6 +296,93 @@ local pushCellResetsEarly = function(pid, cmd)
 end
 customCommandHooks.registerCommand("pushresets", pushCellResetsEarly)
 customCommandHooks.registerCommand("PUSHRESETS", pushCellResetsEarly)
+
+local pushResetAllCells = function(pid, cmd)
+
+	if Players[pid] ~= nil and Players[pid]:IsLoggedIn() then
+		
+		if Players[pid].data.settings.staffRank >= requiredStaffRank then
+			
+			local doSave = false
+			
+			local txt = color.Error.."There are no cells that are ready to be reset.\n"
+			
+			local cellsReset = 0
+			local cellLoaded = 0
+			
+			if not tableHelper.isEmpty(cellResetTimers) then
+				
+				for cellDescription,cellResetTime in pairs(cellResetTimers) do
+						
+					if LoadedCells[cellDescription] == nil then
+						
+						local unloadAtEnd
+						
+						if LoadedCells[cellDescription] == nil then
+							logicHandler.LoadCell(cellDescription)
+							unloadAtEnd = true
+						end
+
+						LoadedCells[cellDescription].isResetting = true
+						LoadedCells[cellDescription].data.objectData = {}
+						LoadedCells[cellDescription].data.packets = {}
+						LoadedCells[cellDescription]:EnsurePacketTables()
+						LoadedCells[cellDescription].data.loadState.hasFullActorList = false
+						LoadedCells[cellDescription].data.loadState.hasFullContainerData = false
+						LoadedCells[cellDescription]:ClearRecordLinks()
+
+						-- Unload a temporarily loaded cell
+						if unloadAtEnd then
+							logicHandler.UnloadCell(1)
+						end
+
+						tes3mp.ClearCellsToReset()
+						tes3mp.AddCellToReset(cellDescription)
+						tes3mp.SendCellReset(pid, true)
+						
+						cellResetTimers[cellDescription] = nil
+						
+						cellsReset = cellsReset + 1
+						
+						doSave = true
+						
+					else
+						cellLoaded = cellLoaded + 1
+					end
+					
+				end
+				
+			end
+			
+			
+			if cellsReset > 1 then
+				txt = color.White..cellsReset..color.Yellow.." cells have been reset."
+			elseif cellsReset == 1 then
+				txt = color.White.."1"..color.Yellow.." cell has been reset."
+			end
+			
+			if cellLoaded > 1 then
+				txt = color.White..cellLoaded..color.Error.." cells could not be reset because they have players in them."
+			elseif cellLoaded == 1 then
+				txt = color.White..cellLoaded..color.Error.." cell could not be reset because it has players in it."
+			end
+			
+			tes3mp.SendMessage(pid, txt.."\n")
+			
+			if doSave then
+				tableHelper.cleanNils(cellResetTimers)
+				SaveCellResetTimers()
+			end
+			
+		end
+		
+	end
+	
+end
+customCommandHooks.registerCommand("resetall", pushResetAllCells)
+customCommandHooks.registerCommand("resetAll", pushResetAllCells)
+customCommandHooks.registerCommand("ResetAll", pushResetAllCells)
+customCommandHooks.registerCommand("RESETALL", pushResetAllCells)
 
 customEventHooks.registerHandler("OnPlayerCellChange", function(eventStatus, pid, previousCellDescription, currentCellDescription)
 	
@@ -287,6 +412,14 @@ customEventHooks.registerHandler("OnPlayerCellChange", function(eventStatus, pid
 	end
 end)
 
+customEventHooks.registerHandler("OnPlayerAuthentified", function(eventStatus, pid)
+	if runStartupCommandsAutomatically and not startupCommandsHaveRun then
+		if Players[pid] ~= nil and Players[pid]:IsLoggedIn() then
+			runStartupCommands(pid)
+			startupCommandsHaveRun = true
+		end
+	end
+end)
 
 periodicCellResets.UpdateResetTimers = function()
 	
