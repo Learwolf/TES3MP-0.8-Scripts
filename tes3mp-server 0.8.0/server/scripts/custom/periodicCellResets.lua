@@ -156,7 +156,7 @@ end
 
 local doCellReset = function(pid, cellDescription)
 	
-	local txt = color.Error.."That cell is not in the reset table.\n"
+	local txt = color.Error.."That cell is not in the reset table."
 	if cellResetTimers[cellDescription] ~= nil then
 		
 		local unloadAtEnd
@@ -220,7 +220,7 @@ local pushCellResetsEarly = function(pid, cmd)
 			local markTime = os.time()
 			local doSave = false
 			
-			local txt = color.Error.."There are no cells that are ready to be reset.\n"
+			local txt = color.Error.."There are no cells that are ready to be reset."
 			
 			local cellsReset = 0
 			local cellLoaded = 0
@@ -305,7 +305,7 @@ local pushResetAllCells = function(pid, cmd)
 			
 			local doSave = false
 			
-			local txt = color.Error.."There are no cells that are ready to be reset.\n"
+			local txt = color.Error.."There are no cells that are ready to be reset."
 			
 			local cellsReset = 0
 			local cellLoaded = 0
@@ -384,11 +384,12 @@ customCommandHooks.registerCommand("resetAll", pushResetAllCells)
 customCommandHooks.registerCommand("ResetAll", pushResetAllCells)
 customCommandHooks.registerCommand("RESETALL", pushResetAllCells)
 
-customEventHooks.registerHandler("OnPlayerCellChange", function(eventStatus, pid, previousCellDescription, currentCellDescription)
+customEventHooks.registerHandler("OnPlayerCellChange", function(eventStatus, pid, playerPacket, previousCellDescription)
 	
 	if Players[pid] ~= nil and Players[pid]:IsLoggedIn() then
 		
-		local cellDescription = Players[pid].data.location.cell -- Use this instead of currentCellDescription for now, because currentCellDescription is bugged and stores your previous instead of current cell description.
+		
+		local cellDescription = playerPacket.location.cell
 		local cell = LoadedCells[cellDescription]
 		if cell ~= nil then
 			
