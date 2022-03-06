@@ -145,10 +145,14 @@ end
 
 local nameLikeCellExemptions = function(cellDescription)
 	
+	local currentCell = string.lower(cellDescription)
 	for _,exemptCellName in pairs(periodicCellResets.exemptCellNamesLike) do
-		if string.match(string.lower(exemptCellName), string.lower(cellDescription)) then
+		
+		local exemptCell = string.lower(exemptCellName)
+		if string.match(currentCell, exemptCell) then
 			return true
 		end
+		
 	end
 
 	return false
