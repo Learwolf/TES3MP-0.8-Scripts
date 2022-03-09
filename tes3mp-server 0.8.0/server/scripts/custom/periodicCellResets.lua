@@ -1,6 +1,6 @@
 --[[
 	Lear's Periodic Cell Reset Script
-		version 1.03 (for TES3MP 0.8)
+		version 1.04 (for TES3MP 0.8)
 	
 	DESCRIPTION:
 	This simple script allows cells to be periodically reset in game without the need for a server 
@@ -31,6 +31,7 @@
 	
 	
 	VERSION HISTORY:
+		1.04 (3/9/2022)		- Fixed issue where actor AI would not work correctly after entering a newly reset cell.
 		1.03 (2/18/2022)	- Added a `/resetall` command. Added confirmation text for /pushresets command. Optional `/runstartup` command automatically run for the first player to log on after the server has started up.
 		1.02 (2/11/2022)	- Fixed issue with cell file names that use ; instead of :
 		1.01 (2/10/2022)	- Removes a cells timer on server startup, if the cell does not exist in the servers cell folder.
