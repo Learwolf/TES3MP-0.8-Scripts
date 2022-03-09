@@ -253,7 +253,7 @@ local pushCellResetsEarly = function(pid, cmd)
 
 							-- Unload a temporarily loaded cell
 							if unloadAtEnd then
-								logicHandler.UnloadCell(1)
+								logicHandler.UnloadCell(cellDescription)
 							end
 
 							tes3mp.ClearCellsToReset()
@@ -337,7 +337,7 @@ local pushResetAllCells = function(pid, cmd)
 
 						-- Unload a temporarily loaded cell
 						if unloadAtEnd then
-							logicHandler.UnloadCell(1)
+							logicHandler.UnloadCell(cellDescription)
 						end
 
 						tes3mp.ClearCellsToReset()
@@ -459,7 +459,7 @@ periodicCellResets.UpdateResetTimers = function()
 
 								-- Unload a temporarily loaded cell
 								if unloadAtEnd then
-									logicHandler.UnloadCell(1)
+									logicHandler.UnloadCell(cellDescription)
 								end
 
 								tes3mp.ClearCellsToReset()
