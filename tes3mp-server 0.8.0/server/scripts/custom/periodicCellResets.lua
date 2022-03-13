@@ -1,6 +1,6 @@
 --[[
 	Lear's Periodic Cell Reset Script
-		version 1.04 (for TES3MP 0.8)
+		version 1.05 (for TES3MP 0.8)
 	
 	DESCRIPTION:
 	This simple script allows cells to be periodically reset in game without the need for a server 
@@ -31,6 +31,7 @@
 	
 	
 	VERSION HISTORY:
+		1.05 (3/13/2022)	- Removes linked records that no longer exist on cell resets. (Toggleable, default set to On)
 		1.04 (3/9/2022)		- Fixed issue where actor AI would not work correctly after entering a newly reset cell.
 		1.03 (2/18/2022)	- Added a `/resetall` command. Added confirmation text for /pushresets command. Optional `/runstartup` command automatically run for the first player to log on after the server has started up.
 		1.02 (2/11/2022)	- Fixed issue with cell file names that use ; instead of :
@@ -58,10 +59,11 @@ local runStartupCommandsAutomatically = false -- Setting this to `true` will ens
 
 local requiredStaffRank = 1 -- Required staff rank to manually force resets. 1 = Moderator, 2 = Admin, 3 = Owner.
 
+local unlinkCustomRecordsOnReset = true -- Advised to leave as true. This unlinks records from cells that are reset. (Prevents customRecord bloat.)
 
 -- Exact cell names:
 periodicCellResets.exemptCellNamesExact = { -- Exact cell names included in this list are not affected by the automated cell reset times in this script.
-		
+	
 	-- AVOID RESETTING THE FOLLOWING CELLS, BECAUSE IT WILL CAUSE WONKY BEHAVIOR WITH THE STARTING BOAT:
 	"-1, -9",
 	"-1, -10",
@@ -111,6 +113,35 @@ local LoadCellResetTimers = function()
 	end
 end
 
+local removeCustomRecordsFromResetCell = function(cellDescription)
+	
+	if unlinkCustomRecordsOnReset then
+		for _, storeType in pairs(config.recordStoreLoadOrder) do
+			if RecordStores[storeType].data.recordLinks ~= nil then
+				
+				local recordLinks = RecordStores[storeType].data.recordLinks
+				for recordId,recordData in pairs(recordLinks) do
+					if recordData.cells ~= nil and tableHelper.containsValue(recordData.cells, cellDescription) then
+						
+						local linkIndex = tableHelper.getIndexByValue(recordData.cells, cellDescription)
+
+						if linkIndex ~= nil then
+							recordLinks[recordId].cells[linkIndex] = nil
+						end
+
+						if not RecordStores[storeType]:HasLinks(recordId) then
+							table.insert(RecordStores[storeType].data.unlinkedRecordsToCheck, recordId)
+						end
+						
+					end
+				end
+				
+			end
+		end
+	end
+
+end
+
 local removeDeletedCellsFromResetTimers = function()
 	
 	local doSave = false
@@ -120,6 +151,7 @@ local removeDeletedCellsFromResetTimers = function()
 		if fixedCellDescription ~= nil and tes3mp.GetCaseInsensitiveFilename(tes3mp.GetDataPath() .. "/cell/", fixedCellDescription .. ".json") == "invalid" then
 			cellResetTimers[fixedCellDescription] = nil
 			tes3mp.LogAppend(enumerations.log.INFO, "Removing stored reset timer for \""..fixedCellDescription.."\" since the cell no longer exists.")
+			removeCustomRecordsFromResetCell(cellDescription)
 			doSave = true
 		end
 	end
@@ -193,6 +225,8 @@ local doCellReset = function(pid, cellDescription)
 		tableHelper.cleanNils(cellResetTimers)
 		SaveCellResetTimers()
 		
+		removeCustomRecordsFromResetCell(cellDescription) -- Remove custom record links from a cell when the cell is reset.
+		
 		txt = color.Green..cellDescription..color.White.." has been reset and is no longer in the list of cells to reset."
 	end
 	tes3mp.SendMessage(pid, color.Yellow.."[CellResets]: "..txt.."\n")
@@ -262,6 +296,8 @@ local pushCellResetsEarly = function(pid, cmd)
 							tes3mp.SendCellReset(pid, true)
 							
 							cellResetTimers[cellDescription] = nil
+							
+							removeCustomRecordsFromResetCell(cellDescription)
 							
 							cellsReset = cellsReset + 1
 							
@@ -346,6 +382,8 @@ local pushResetAllCells = function(pid, cmd)
 						tes3mp.SendCellReset(pid, true)
 						
 						cellResetTimers[cellDescription] = nil
+						
+						removeCustomRecordsFromResetCell(cellDescription) -- Remove custom record links from a cell when the cell is reset.
 						
 						cellsReset = cellsReset + 1
 						
@@ -468,6 +506,8 @@ periodicCellResets.UpdateResetTimers = function()
 								tes3mp.SendCellReset(pid, true)
 								
 								cellResetTimers[cellDescription] = nil
+								
+								removeCustomRecordsFromResetCell(cellDescription) -- Remove custom record links from a cell when the cell is reset.
 								
 								doSave = true
 								
