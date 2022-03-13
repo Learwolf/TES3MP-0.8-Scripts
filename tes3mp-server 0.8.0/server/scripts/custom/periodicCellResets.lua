@@ -1,6 +1,6 @@
 --[[
 	Lear's Periodic Cell Reset Script
-		version 1.05 (for TES3MP 0.8)
+		version 1.06 (for TES3MP 0.8)
 	
 	DESCRIPTION:
 	This simple script allows cells to be periodically reset in game without the need for a server 
@@ -31,6 +31,9 @@
 	
 	
 	VERSION HISTORY:
+		1.06 (3/13/2022)	- Added `/resets` command for players to view upcoming cell resets. New options related to this function can be found in the config section of this script.
+							- Added `resetNormalCellsOnRestart` config option to allow server owners to wipe all cells on a hard server restart. (Disabled by default.)
+							
 		1.05 (3/13/2022)	- Removes linked records that no longer exist on cell resets. (Toggleable, default set to On)
 		1.04 (3/9/2022)		- Fixed issue where actor AI would not work correctly after entering a newly reset cell.
 		1.03 (2/18/2022)	- Added a `/resetall` command. Added confirmation text for /pushresets command. Optional `/runstartup` command automatically run for the first player to log on after the server has started up.
@@ -58,6 +61,10 @@ local interiorCellResetTime = 14400 -- Interior cells reset every 14400 seconds 
 local runStartupCommandsAutomatically = false -- Setting this to `true` will ensure the `/runstartup` gets run whenever the server is restarted.
 
 local requiredStaffRank = 1 -- Required staff rank to manually force resets. 1 = Moderator, 2 = Admin, 3 = Owner.
+local viewResetsStaffRank = 0 -- Required staff rank to view what cells will be reset soon.
+local viewResetSortTypeCellName = true -- If true, sorts the `/resets` by cell name. If false, sorts by time remaining until the cell reset.
+
+local resetNormalCellsOnRestart = false -- If true, deletes all non-exempt cells on server startup.
 
 local unlinkCustomRecordsOnReset = true -- Advised to leave as true. This unlinks records from cells that are reset. (Prevents customRecord bloat.)
 
@@ -142,6 +149,47 @@ local removeCustomRecordsFromResetCell = function(cellDescription)
 
 end
 
+local resetCellsOnStartup = function()
+	if resetNormalCellsOnRestart ~= nil and resetNormalCellsOnRestart == true then
+		
+		local clearedCellCount = 0
+		local directory = tes3mp.GetModDir() .. "/cell/"
+		local cells = getCellsArray(directory)
+		
+		local tempMerge = {}
+		for _,cellName in pairs(periodicCellResets.exemptCellNamesExact) do
+			tableHelper.insertValueIfMissing(tempMerge, cellName)
+		end
+		for _,cellName in pairs(periodicCellResets.exemptCellNamesLike) do
+			tableHelper.insertValueIfMissing(tempMerge, cellName)
+		end
+		
+		for _,cellFile in pairs(cells) do
+			local preventDeletion = false
+			for x,BlockedCellName in pairs(tempMerge) do
+				if string.match(string.lower(cellFile), string.lower(BlockedCellName)) then
+					preventDeletion = true
+					break
+				end
+			end
+			
+			if not preventDeletion then
+				if string.match(string.lower(cellFile), ".json") then
+					--print("DELETING CELL: "..cellFile)
+					os.remove(directory..cellFile)
+					clearedCellCount = clearedCellCount + 1
+				end
+			end
+			
+		end
+		
+		if clearedCellCount > 0 then
+			print("Total Cells Deleted: "..clearedCellCount)
+		end
+		
+	end
+end
+
 local removeDeletedCellsFromResetTimers = function()
 	
 	local doSave = false
@@ -165,6 +213,7 @@ end
 
 customEventHooks.registerHandler("OnServerPostInit", function(eventStatus)
 	LoadCellResetTimers()
+	resetCellsOnStartup()
 	removeDeletedCellsFromResetTimers()
 end)
 
@@ -532,5 +581,150 @@ end
 GlobalCellResetTimerUpdate = periodicCellResets.UpdateResetTimers
 GlobalCellResetTimer = tes3mp.CreateTimer("GlobalCellResetTimerUpdate", time.seconds(cellResetTimeCheck))
 tes3mp.StartTimer(GlobalCellResetTimer)
+
+
+local determineTime = function(timeInput)
+	local timeString = ""
+    local mod
+    local timeArray = {0, 0, 0}
+    local timeSection = {86400, 3600, 60}
+    local timeName
+    local div1
+    local div2
+    local plural
+    local dot
+    if returnList == false then
+        timeName = {" day", " hour", " minute", " second"}
+        div1 = ", "
+        div2 = " and "
+        plural = "s"
+        dot = "."
+    else
+        timeName = {"d", "h", "m", "s"}
+        div1 = " "
+        div2 = " "
+        plural = ""
+        dot = ""
+    end
+    for i = 1, 3 do
+        mod = timeInput % timeSection[i]
+        timeArray[i] = (timeInput - mod) / timeSection[i]
+        if timeArray[i] > 0 then
+            if i > 1 then
+                if timeArray[i-1] > 0 then
+                    if mod ~= 0 then
+                        timeString = timeString .. div1 .. timeArray[i]
+                    else
+                        timeString = timeString .. div2 .. timeArray[i]
+                    end
+                else
+                    timeString = timeString .. timeArray[i]
+                end
+            else
+                timeString = timeArray[i]
+            end
+            if timeArray[i] > 1 then
+                timeString = timeString .. timeName[i] .. plural
+            else
+                timeString = timeString .. timeName[i]
+            end
+        end
+        timeInput = mod
+    end
+    if mod ~= 0 then
+        if timeString ~= "" then
+            if mod > 1 then
+                timeString = timeString .. div2 .. mod .. timeName[4] .. plural .. dot
+            else
+                timeString = timeString .. div2 .. mod .. timeName[4] .. dot
+            end
+        else
+            if mod > 1 then
+                timeString = mod .. timeName[4] .. plural .. dot
+            else
+                timeString = mod .. timeName[4] .. dot
+            end
+        end
+    end
+    return timeString
+end
+
+local getListOfUpcomingResetCells = function()
+	
+	local txt = ""
+	local list = {}
+	
+	if tableHelper.isEmpty(cellResetTimers) then
+		return "There are no cells with upcoming resets."
+	else
+		for cellDescription, resetTime in pairs(cellResetTimers) do
+			local timeRemainder = resetTime - os.time()
+			
+			local timeRemainderText = color.Lime.."Leave cell for reset!"
+			
+			if timeRemainder > 0 then
+				
+				local timerColor = color.Grey
+				
+				if timeRemainder <= 900 then
+					timerColor = color.Red
+				elseif timeRemainder <= 1700 then
+					timerColor = color.Orange
+				elseif timeRemainder <= 5400 then
+					timerColor = color.Yellow
+				elseif timeRemainder <= 9000 then
+					timerColor = color.Khaki
+				end
+				
+				timeRemainderText = timerColor..determineTime(timeRemainder)
+			end
+			
+			table.insert(list, {name = cellDescription, timer = timeRemainder, timeText = timeRemainderText})
+		end
+	end
+	
+	if viewResetSortTypeCellName then
+		table.sort(list, function(a,b) return a.name<b.name end)
+	else
+		table.sort(list, function(a,b) return a.timer<b.timer end)
+	end
+	for i=1,#list do
+		txt = txt .. "\"" .. list[i].name .. "\"\n" .. color.White .. "  - Resets in: "..list[i].timeText.."\n"
+	end
+	
+	return txt:sub(1, -2)
+end
+
+local viewResetMenu = function(pid)
+	local header = color.DarkOrange.."View Upcoming Cell Resets\n" .. color.Yellow .. "The following list contains cells and how long until they will reset."
+	tes3mp.ListBox(pid, ViewResetsGuiId, header, getListOfUpcomingResetCells())
+end
+
+-- GUI Handler
+customEventHooks.registerHandler("OnGUIAction", function(eventStatus, pid, idGui, data)
+	local isValid = eventStatus.validDefaultHandler
+	
+	if isValid ~= false then
+	
+		if idGui == ViewResetsGuiId then
+			isValid = false
+			return
+		end
+	end
+	
+	eventStatus.validDefaultHandler = isValid
+    return eventStatus
+end)
+
+periodicCellResets.viewResets = function(pid, cmd)
+	if Players[pid] ~= nil and Players[pid]:IsLoggedIn() then
+		if Players[pid].data.settings.staffRank >= viewResetsStaffRank then
+			viewResetMenu(pid)
+		else
+			tes3mp.SendMessage(pid, color.Error.."You do not have access to that command.\n")
+		end
+	end
+end
+customCommandHooks.registerCommand("resets", viewResets)
 
 return periodicCellResets
