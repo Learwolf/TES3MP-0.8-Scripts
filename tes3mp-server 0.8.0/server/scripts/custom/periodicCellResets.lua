@@ -1,6 +1,6 @@
 --[[
 	Lear's Periodic Cell Reset Script
-		version 1.06 (for TES3MP 0.8)
+		version 1.07 (for TES3MP 0.8)
 	
 	DESCRIPTION:
 	This simple script allows cells to be periodically reset in game without the need for a server 
@@ -31,6 +31,7 @@
 	
 	
 	VERSION HISTORY:
+		1.07 (3/16/2022)	- Added toggleable configuration option to also reset world kill counts on server startup.
 		1.06 (3/13/2022)	- Added `/resets` command for players to view upcoming cell resets. New options related to this function can be found in the config section of this script.
 							- Added `resetNormalCellsOnRestart` config option to allow server owners to wipe all cells on a hard server restart. (Disabled by default.)
 							
@@ -65,6 +66,7 @@ local viewResetsStaffRank = 0 -- Required staff rank to view what cells will be 
 local viewResetSortTypeCellName = true -- If true, sorts the `/resets` by cell name. If false, sorts by time remaining until the cell reset.
 
 local resetNormalCellsOnRestart = false -- If true, deletes all non-exempt cells on server startup.
+local resetWorldKillCountsOnRestart = false -- If true, resets the worlds kill count on server startup. (Requires resetNormalCellsOnRestart to also be true!)
 
 local unlinkCustomRecordsOnReset = true -- Advised to leave as true. This unlinks records from cells that are reset. (Prevents customRecord bloat.)
 
@@ -187,6 +189,18 @@ local resetCellsOnStartup = function()
 			print("Total Cells Deleted: "..clearedCellCount)
 		end
 		
+	end
+	
+	if resetWorldKillCountsOnRestart ~= nil and resetWorldKillCountsOnRestart == true then
+		local clearedCellKills = 0
+        for refId, killCount in pairs(WorldInstance.data.kills) do
+			clearedCellKills = clearedCellKills + WorldInstance.data.kills[refId]
+            WorldInstance.data.kills[refId] = 0
+        end
+
+        WorldInstance:QuicksaveToDrive()
+        WorldInstance:LoadKills(pid, true)
+        print("Total Kills Cleared: "..clearedCellKills)
 	end
 end
 
