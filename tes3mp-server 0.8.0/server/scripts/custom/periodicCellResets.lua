@@ -199,7 +199,6 @@ local resetCellsOnStartup = function()
         end
 
         WorldInstance:QuicksaveToDrive()
-        WorldInstance:LoadKills(pid, true)
         print("Total Kills Cleared: "..clearedCellKills)
 	end
 end
