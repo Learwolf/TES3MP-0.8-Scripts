@@ -784,6 +784,6 @@ periodicCellResets.viewResets = function(pid, cmd)
 		end
 	end
 end
-customCommandHooks.registerCommand("resets", viewResets)
+customCommandHooks.registerCommand("resets", periodicCellResets.viewResets)
 
 return periodicCellResets
