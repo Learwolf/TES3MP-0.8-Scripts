@@ -1,6 +1,6 @@
 --[[
 	Lear's Periodic Cell Reset Script
-		version 1.07 (for TES3MP 0.8)
+		version 1.08 (for TES3MP 0.8)
 	
 	DESCRIPTION:
 	This simple script allows cells to be periodically reset in game without the need for a server 
@@ -31,6 +31,7 @@
 	
 	
 	VERSION HISTORY:
+		1.08 (4/2/20022)	- Added requested option in configuration section to disable resetting of any interior cells.
 		1.07 (3/16/2022)	- Added toggleable configuration option to also reset world kill counts on server startup.
 		1.06 (3/13/2022)	- Added `/resets` command for players to view upcoming cell resets. New options related to this function can be found in the config section of this script.
 							- Added `resetNormalCellsOnRestart` config option to allow server owners to wipe all cells on a hard server restart. (Disabled by default.)
@@ -65,7 +66,9 @@ local requiredStaffRank = 1 -- Required staff rank to manually force resets. 1 =
 local viewResetsStaffRank = 0 -- Required staff rank to view what cells will be reset soon.
 local viewResetSortTypeCellName = true -- If true, sorts the `/resets` by cell name. If false, sorts by time remaining until the cell reset.
 
-local resetNormalCellsOnRestart = false -- If true, deletes all non-exempt cells on server startup.
+local resetExteriorCellsOnly = false -- If true, only exerior cells will reset. -- string.match(cellDescription, patterns.exteriorCell)
+
+local resetNormalCellsOnRestart = false -- WARING!! This does not seem to work as intended, and seems to ALWAYS delete Exterior cells! If true, deletes all non-exempt cells on server startup.
 local resetWorldKillCountsOnRestart = false -- If true, resets the worlds kill count on server startup. (Requires resetNormalCellsOnRestart to also be true!)
 
 local unlinkCustomRecordsOnReset = true -- Advised to leave as true. This unlinks records from cells that are reset. (Prevents customRecord bloat.)
@@ -151,6 +154,24 @@ local removeCustomRecordsFromResetCell = function(cellDescription)
 
 end
 
+local getCellsArray = function(directory)
+	--This function finds the filename when given a complete path 
+	--local directory = config.dataPath .. "\\cell"
+	
+	local i, t, popen = 0, {}, io.popen
+	
+	--local pfile = popen('dir "'..directory..'" /b /ad') -- the /ad gets directories only it seems.
+	local pfile = popen('dir "'..directory..'" /b')
+	
+	for filename in pfile:lines() do
+		i = i + 1
+		t[i] = filename
+	end
+	pfile:close()
+	--tableHelper.print(t)
+	return t
+end
+
 local resetCellsOnStartup = function()
 	if resetNormalCellsOnRestart ~= nil and resetNormalCellsOnRestart == true then
 		
@@ -167,11 +188,22 @@ local resetCellsOnStartup = function()
 		end
 		
 		for _,cellFile in pairs(cells) do
+			
+			local splitFileExtension = cellFile:split(".")
+			local cellName = splitFileExtension[1]
+			
 			local preventDeletion = false
 			for x,BlockedCellName in pairs(tempMerge) do
-				if string.match(string.lower(cellFile), string.lower(BlockedCellName)) then
+				if string.match(cellName, BlockedCellName) then
 					preventDeletion = true
 					break
+				end
+			end
+			
+			-- If only allowed to delete exterior cells is true:
+			if resetExteriorCellsOnly == true then
+				if not string.match(cellName, patterns.exteriorCell) then
+					preventDeletion = true
 				end
 			end
 			
@@ -250,6 +282,20 @@ local nameLikeCellExemptions = function(cellDescription)
 		
 	end
 
+	return false
+end
+
+local interiorCellExemption = function(cellDescription)
+	
+	if resetExteriorCellsOnly == true then
+		
+		local currentCell = string.lower(cellDescription)
+		if not string.match(currentCell, patterns.exteriorCell) then
+			return true
+		end
+		
+	end
+	
 	return false
 end
 
@@ -498,7 +544,7 @@ customEventHooks.registerHandler("OnPlayerCellChange", function(eventStatus, pid
 		local cell = LoadedCells[cellDescription]
 		if cell ~= nil then
 			
-			if not tableHelper.containsValue(periodicCellResets.exemptCellNamesExact, cellDescription) and not nameLikeCellExemptions(cellDescription) then
+			if not tableHelper.containsValue(periodicCellResets.exemptCellNamesExact, cellDescription) and not nameLikeCellExemptions(cellDescription) and not interiorCellExemption(cellDescription) then
 				
 				if cellResetTimers[cellDescription] == nil then
 					local exteriorCell = cell.isExterior
