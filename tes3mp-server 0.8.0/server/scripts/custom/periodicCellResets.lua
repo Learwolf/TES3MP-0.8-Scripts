@@ -102,6 +102,8 @@ periodicCellResets.exemptCellNamesLike = { -- Cell names that match strings incl
 	END OF CONFIGURATION. DO NOT TOUCH LINES BELOW UNLESS YOU KNOW WHAT YOU ARE DOING.
 --]]
 
+local ViewResetsGuiId = 44332202 -- GUI Id used for the `/resets` menu (Shouldn't need to touch this.)
+
 local cellResetTimers = jsonInterface.load("custom/cellResetTimers.json")
 
 local startupCommandsHaveRun = false
