@@ -74,7 +74,7 @@ end
 -- get all lines from a fileName, returns an empty 
 -- list/table if the fileName does not exist
 function lines_from(fName)
-  local fileName = tes3mp.GetModDir().."/custom/customServerScripts/"..fName..".es3"
+  local fileName = tes3mp.GetModDir().."/custom/MWScripts/"..fName..".es3"
   if not file_exists(fileName) then return nil end
   lines = {}
   for line in io.lines(fileName) do 
