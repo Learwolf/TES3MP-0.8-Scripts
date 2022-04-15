@@ -70,6 +70,156 @@ local jailcells = {jail1, jail2}
 local jailed = {}
 local safePlayers = {}
 
+
+logicHandler.CreateObjects = function(cellDescription, objectsToCreate, packetType)
+
+    local uniqueIndexes = {}
+    local generatedRecordIdsPerType = {}
+    local unloadCellAtEnd = false
+    local shouldSendPacket = false
+
+    -- If the desired cell is not loaded, load it temporarily
+    if LoadedCells[cellDescription] == nil then
+        logicHandler.LoadCell(cellDescription)
+        unloadCellAtEnd = true
+    end
+
+    local cell = LoadedCells[cellDescription]
+
+    -- Only send a packet if there are players on the server to send it to
+    if tableHelper.getCount(Players) > 0 then
+        shouldSendPacket = true
+        tes3mp.ClearObjectList()
+    end
+
+    for _, object in pairs(objectsToCreate) do
+
+        local refId = object.refId
+        local count = object.count
+        local charge = object.charge
+        local enchantmentCharge = object.enchantmentCharge
+        local soul = object.soul
+        local location = object.location
+        local scale = object.scale
+
+        local mpNum = WorldInstance:GetCurrentMpNum() + 1
+        local uniqueIndex =  0 .. "-" .. mpNum
+        local isValid = true
+
+        -- Is this object based on a a generated record? If so, it needs special
+        -- handling here and further below
+        if logicHandler.IsGeneratedRecord(refId) then
+
+            local recordType = logicHandler.GetRecordTypeByRecordId(refId)
+
+            if RecordStores[recordType] ~= nil then
+
+                -- Add a link to this generated record in the cell it is being placed in
+                cell:AddLinkToRecord(recordType, refId, uniqueIndex)
+
+                if generatedRecordIdsPerType[recordType] == nil then
+                    generatedRecordIdsPerType[recordType] = {}
+                end
+
+                if shouldSendPacket and not tableHelper.containsValue(generatedRecordIdsPerType[recordType], refId) then
+                    table.insert(generatedRecordIdsPerType[recordType], refId)
+                end
+            else
+                isValid = false
+                tes3mp.LogMessage(enumerations.log.ERROR, "Attempt at creating object " .. refId ..
+                    " based on non-existent generated record")
+            end
+        end
+
+        if isValid then
+
+            table.insert(uniqueIndexes, uniqueIndex)
+            WorldInstance:SetCurrentMpNum(mpNum)
+            tes3mp.SetCurrentMpNum(mpNum)
+
+            cell:InitializeObjectData(uniqueIndex, refId)
+            cell.data.objectData[uniqueIndex].location = location
+
+            if scale ~= nil then
+                cell.data.objectData[uniqueIndex].scale = scale
+                table.insert(cell.data.packets.scale, uniqueIndex)
+            end
+
+            if packetType == "place" then
+                table.insert(cell.data.packets.place, uniqueIndex)
+            elseif packetType == "spawn" then
+                table.insert(cell.data.packets.spawn, uniqueIndex)
+                table.insert(cell.data.packets.actorList, uniqueIndex)
+            end
+            -- Are there any players on the server? If so, initialize the object
+            -- list for the first one we find and just send the corresponding packet
+            -- to everyone
+            if shouldSendPacket then
+
+                local pid = tableHelper.getAnyValue(Players).pid
+                tes3mp.SetObjectListPid(pid)
+                tes3mp.SetObjectListCell(cellDescription)
+                tes3mp.SetObjectRefId(refId)
+                tes3mp.SetObjectRefNum(0)
+                tes3mp.SetObjectMpNum(mpNum)
+                tes3mp.SetObjectScale(scale)
+
+                if packetType == "place" then
+                    tes3mp.SetObjectCount(count)
+                    tes3mp.SetObjectCharge(charge)
+                    tes3mp.SetObjectEnchantmentCharge(enchantmentCharge)
+                    tes3mp.SetObjectSoul(soul)
+                end
+
+                tes3mp.SetObjectPosition(location.posX, location.posY, location.posZ)
+                tes3mp.SetObjectRotation(location.rotX, location.rotY, location.rotZ)
+                tes3mp.AddObject()
+            end
+        end
+    end
+
+    if shouldSendPacket then
+
+        -- Ensure the visitors to this cell have the records they need for the
+        -- objects we've created
+        for _, recordType in pairs(config.recordStoreLoadOrder) do
+            if generatedRecordIdsPerType[recordType] ~= nil then
+
+                local recordStore = RecordStores[recordType]
+
+                if recordStore ~= nil then
+
+                    local idArray = generatedRecordIdsPerType[recordType]
+
+                    for _, visitorPid in pairs(cell.visitors) do
+                        recordStore:LoadGeneratedRecords(visitorPid, recordStore.data.generatedRecords, idArray)
+                    end
+                end
+            end
+        end
+
+        if packetType == "place" then
+            tes3mp.SendObjectPlace(true)
+        elseif packetType == "spawn" then
+            tes3mp.SendObjectSpawn(true)
+        end
+
+        if scale ~= nil then
+            tes3mp.SendObjectScale(true)
+        end
+    end
+
+    cell:Save()
+
+    if unloadCellAtEnd then
+        logicHandler.UnloadCell(cellDescription)
+    end
+
+    return uniqueIndexes
+end
+
+
+
 customEventHooks.registerValidator("OnPlayerDeath", function(eventStatus, pid)
 	if Players[pid] ~= nil and Players[pid]:IsLoggedIn() then
 		
@@ -173,7 +323,14 @@ customEventHooks.registerValidator("OnPlayerDeath", function(eventStatus, pid)
 			tes3mp.SendInventoryChanges(pid)
 
 			for index,item in pairs(temp) do
+				
 				item.location = {posX = pX, posY = pY, posZ = pZ, rotX = rX, rotY = 0, rotZ = rZ}
+				
+				item.count = item.count or 1
+				item.charge = item.charge or -1
+				item.enchantmentCharge = item.enchantmentCharge or -1
+				item.soul = item.soul or ""
+				
 			end
 			logicHandler.CreateObjects(cellDescription, temp, "place")
 			
