@@ -1,6 +1,6 @@
 --[[
 	Lear's Periodic Cell Reset Script
-		version 1.08 (for TES3MP 0.8)
+		version 1.09 (for TES3MP 0.8)
 	
 	DESCRIPTION:
 	This simple script allows cells to be periodically reset in game without the need for a server 
@@ -31,6 +31,7 @@
 	
 	
 	VERSION HISTORY:
+		1.09 (4/23/2022)	- Updated to take in changes made by David to new config.recordStoreLoadOrder.
 		1.08 (4/2/20022)	- Added requested option in configuration section to disable resetting of any interior cells.
 		1.07 (3/16/2022)	- Added toggleable configuration option to also reset world kill counts on server startup.
 		1.06 (3/13/2022)	- Added `/resets` command for players to view upcoming cell resets. New options related to this function can be found in the config section of this script.
@@ -130,27 +131,61 @@ end
 local removeCustomRecordsFromResetCell = function(cellDescription)
 	
 	if unlinkCustomRecordsOnReset then
-		for _, storeType in pairs(config.recordStoreLoadOrder) do
-			if RecordStores[storeType].data.recordLinks ~= nil then
-				
-				local recordLinks = RecordStores[storeType].data.recordLinks
-				for recordId,recordData in pairs(recordLinks) do
-					if recordData.cells ~= nil and tableHelper.containsValue(recordData.cells, cellDescription) then
-						
-						local linkIndex = tableHelper.getIndexByValue(recordData.cells, cellDescription)
+		
+		if type(config.recordStoreLoadOrder[1]) == "table" then -- Using new config.recordStoreLoadOrder
+			
+			for priorityLevel, recordStoreTypes in ipairs(config.recordStoreLoadOrder) do
+				for _, storeType in ipairs(recordStoreTypes) do
+			
+					if RecordStores[storeType].data.recordLinks ~= nil then
+					
+						local recordLinks = RecordStores[storeType].data.recordLinks
+						for recordId,recordData in pairs(recordLinks) do
+							if recordData.cells ~= nil and tableHelper.containsValue(recordData.cells, cellDescription) then
+								
+								local linkIndex = tableHelper.getIndexByValue(recordData.cells, cellDescription)
 
-						if linkIndex ~= nil then
-							recordLinks[recordId].cells[linkIndex] = nil
-						end
+								if linkIndex ~= nil then
+									recordLinks[recordId].cells[linkIndex] = nil
+								end
 
-						if not RecordStores[storeType]:HasLinks(recordId) then
-							table.insert(RecordStores[storeType].data.unlinkedRecordsToCheck, recordId)
+								if not RecordStores[storeType]:HasLinks(recordId) then
+									table.insert(RecordStores[storeType].data.unlinkedRecordsToCheck, recordId)
+								end
+								
+							end
 						end
 						
 					end
+					
 				end
-				
 			end
+			
+		else -- Using old config.recordStoreLoadOrder
+			
+			for _, storeType in pairs(config.recordStoreLoadOrder) do
+				if RecordStores[storeType].data.recordLinks ~= nil then
+					
+					local recordLinks = RecordStores[storeType].data.recordLinks
+					for recordId,recordData in pairs(recordLinks) do
+						if recordData.cells ~= nil and tableHelper.containsValue(recordData.cells, cellDescription) then
+							
+							local linkIndex = tableHelper.getIndexByValue(recordData.cells, cellDescription)
+
+							if linkIndex ~= nil then
+								recordLinks[recordId].cells[linkIndex] = nil
+							end
+
+							if not RecordStores[storeType]:HasLinks(recordId) then
+								table.insert(RecordStores[storeType].data.unlinkedRecordsToCheck, recordId)
+							end
+							
+						end
+					end
+					
+				end
+			end
+			
 		end
 	end
 
