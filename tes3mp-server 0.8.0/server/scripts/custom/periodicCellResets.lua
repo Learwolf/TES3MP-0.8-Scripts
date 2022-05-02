@@ -1,6 +1,6 @@
 --[[
 	Lear's Periodic Cell Reset Script
-		version 1.09 (for TES3MP 0.8)
+		version 1.10 (for TES3MP 0.8 & 0.8.1)
 	
 	DESCRIPTION:
 	This simple script allows cells to be periodically reset in game without the need for a server 
@@ -14,6 +14,10 @@
 	Cells listed in `periodicCellResets.exemptCellNamesLike` will not be reset by this script if the names 
 		have matching letter patterns. (I.E., "vivec" will prevent all cells with vivec in the name from being 
 		reset via this script.)
+	
+	Players can adjust the amount of days to which a merchant cell restock, should they want it to occur before a
+		standard cell reset. The `merchantDayRestock` configuration option below will cause a merchant cell to reset 
+		every X amount of in-game days, with X being the value applied to `merchantDayRestock`.
 	
 	There are two commands for staff members to use. They are: 
 		`/pushresets` (skips waiting for the global timer, and checks all cells that have a reset timer to see if they can be reset now.)
@@ -31,6 +35,7 @@
 	
 	
 	VERSION HISTORY:
+		1.10 (5/2/2022)		- Added method to reset merchant cells specifically.
 		1.09 (4/23/2022)	- Updated to take in changes made by David to new config.recordStoreLoadOrder.
 		1.08 (4/2/20022)	- Added requested option in configuration section to disable resetting of any interior cells.
 		1.07 (3/16/2022)	- Added toggleable configuration option to also reset world kill counts on server startup.
@@ -58,8 +63,10 @@ local cellResetTimeCheck = 300 -- Every x seconds (300 = 5 minutes), check unloa
 
 local exteriorCellResetTime = 21600 -- Exterior cells reset every 21600 seconds (6 hours) of real time.
 local interiorCellResetTime = 14400 -- Interior cells reset every 14400 seconds (4 hours) of real time.
--- For the above two times, they will push a cell reset upon loading up a respective cell for the first 
+-- For the above two values, they will push a cell reset upon loading up a respective cell for the first 
 -- time, x amount of seconds from when it was first initialized.
+
+local merchantDayRestock = 1 -- Day intervals that merchant cells reset/restock. (1 = Merchants restock daily)
 
 local runStartupCommandsAutomatically = false -- Setting this to `true` will ensure the `/runstartup` gets run whenever the server is restarted.
 
@@ -85,7 +92,7 @@ periodicCellResets.exemptCellNamesExact = { -- Exact cell names included in this
 	
 }
 
--- Similar cell names:
+-- Similar cell names:interiorCellExemption
 periodicCellResets.exemptCellNamesLike = { -- Cell names that match strings included in this list are not affected by the automated cell reset times in this script.
 	
 	"$custom_", -- Custom generated cells.
@@ -106,6 +113,8 @@ periodicCellResets.exemptCellNamesLike = { -- Cell names that match strings incl
 local ViewResetsGuiId = 44332202 -- GUI Id used for the `/resets` menu (Shouldn't need to touch this.)
 
 local cellResetTimers = jsonInterface.load("custom/cellResetTimers.json")
+
+local merchantCells = {} -- Tracks merchant cells that need to be restocked. Don't touch
 
 local startupCommandsHaveRun = false
 local runStartupCommands = function(pid)
@@ -205,7 +214,7 @@ local getCellsArray = function(directory)
 		t[i] = filename
 	end
 	pfile:close()
-	--tableHelper.print(t)
+	
 	return t
 end
 
@@ -246,7 +255,6 @@ local resetCellsOnStartup = function()
 			
 			if not preventDeletion then
 				if string.match(string.lower(cellFile), ".json") then
-					--print("DELETING CELL: "..cellFile)
 					os.remove(directory..cellFile)
 					clearedCellCount = clearedCellCount + 1
 				end
@@ -572,6 +580,46 @@ customCommandHooks.registerCommand("resetAll", pushResetAllCells)
 customCommandHooks.registerCommand("ResetAll", pushResetAllCells)
 customCommandHooks.registerCommand("RESETALL", pushResetAllCells)
 
+customEventHooks.registerHandler("OnObjectDialogueChoice", function(eventStatus, pid, cellDescription, objects)
+	if Players[pid] ~= nil and Players[pid]:IsLoggedIn() then
+		
+		local isValid = eventStatus.validDefaultHandler
+		
+		if not tableHelper.containsValue(periodicCellResets.exemptCellNamesExact, cellDescription) and not nameLikeCellExemptions(cellDescription) and not interiorCellExemption(cellDescription) then
+			for uniqueIndex, object in pairs(objects) do
+				
+				if object.dialogueChoiceType == 3 then -- 3 == barter
+					if merchantCells[cellDescription] == nil then 
+						merchantCells[cellDescription] = (WorldInstance.data.time.daysPassed + merchantDayRestock)
+					end
+				end
+				
+			end
+		end
+		
+	end
+end)
+
+local checkMerchantCell = function()
+	
+	local doSave = false
+	local currentDay = WorldInstance.data.time.daysPassed
+	for cellDescription, daySaved in pairs(merchantCells) do
+		
+		if LoadedCells[cellDescription] == nil then
+			if daySaved ~= nil and currentDay >= daySaved then 
+				cellResetTimers[cellDescription] = 0
+				merchantCells[cellDescription] = nil
+				doSave = true
+			end
+		end
+	end
+	
+	if doSave then
+		SaveCellResetTimers()
+	end
+end
+
 customEventHooks.registerHandler("OnPlayerCellChange", function(eventStatus, pid, playerPacket, previousCellDescription)
 	
 	if Players[pid] ~= nil and Players[pid]:IsLoggedIn() then
@@ -611,6 +659,8 @@ customEventHooks.registerHandler("OnPlayerAuthentified", function(eventStatus, p
 end)
 
 periodicCellResets.UpdateResetTimers = function()
+	
+	checkMerchantCell()
 	
 	for pid, player in pairs(Players) do
 		if Players[pid] ~= nil and player:IsLoggedIn() then
