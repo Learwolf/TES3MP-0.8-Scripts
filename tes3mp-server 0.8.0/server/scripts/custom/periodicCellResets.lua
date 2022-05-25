@@ -1,6 +1,6 @@
 --[[
 	Lear's Periodic Cell Reset Script
-		version 1.10 (for TES3MP 0.8 & 0.8.1)
+		version 1.11 (for TES3MP 0.8 & 0.8.1)
 	
 	DESCRIPTION:
 	This simple script allows cells to be periodically reset in game without the need for a server 
@@ -35,6 +35,7 @@
 	
 	
 	VERSION HISTORY:
+		1.11 (5/25/2022)	- Fixed issue where `resetNormalCellsOnRestart` didn't work on linux. (Thank you, Phoenix_)
 		1.10 (5/2/2022)		- Added method to reset merchant cells specifically.
 		1.09 (4/23/2022)	- Updated to take in changes made by David to new config.recordStoreLoadOrder.
 		1.08 (4/2/20022)	- Added requested option in configuration section to disable resetting of any interior cells.
@@ -205,16 +206,21 @@ local getCellsArray = function(directory)
 	--local directory = config.dataPath .. "\\cell"
 	
 	local i, t, popen = 0, {}, io.popen
-	
-	--local pfile = popen('dir "'..directory..'" /b /ad') -- the /ad gets directories only it seems.
-	local pfile = popen('dir "'..directory..'" /b')
-	
+    local pfile = nil
+
+    --local pfile = popen('dir "'..directory..'" /b /ad') -- the /ad gets directories only it seems.
+    if tes3mp.GetOperatingSystemType() == "Windows" then
+        pfile = popen('dir "' .. directory .. '" /b')
+    else
+        pfile = popen('find "' .. directory .. '" -maxdepth 1 -type f -printf "%f\n"')
+    end
+
 	for filename in pfile:lines() do
 		i = i + 1
 		t[i] = filename
 	end
 	pfile:close()
-	
+
 	return t
 end
 
