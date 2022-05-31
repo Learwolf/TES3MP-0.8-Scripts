@@ -35,7 +35,7 @@
 	
 	
 	VERSION HISTORY:
-		1.11 (5/25/2022)	- Fix `periodicCellResets.exemptCellNamesExact` not working correctly for external cells.
+		1.12 (5/29/2022)	- Fix `periodicCellResets.exemptCellNamesExact` not working correctly for external cells.
 		1.11 (5/25/2022)	- Fixed issue where `resetNormalCellsOnRestart` didn't work on linux. (Thank you, Phoenix_)
 		1.10 (5/2/2022)		- Added method to reset merchant cells specifically.
 		1.09 (4/23/2022)	- Updated to take in changes made by David to new config.recordStoreLoadOrder.
