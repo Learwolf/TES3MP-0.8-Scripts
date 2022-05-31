@@ -1,6 +1,6 @@
 --[[
 	Lear's Periodic Cell Reset Script
-		version 1.11 (for TES3MP 0.8 & 0.8.1)
+		version 1.12 (for TES3MP 0.8 & 0.8.1)
 	
 	DESCRIPTION:
 	This simple script allows cells to be periodically reset in game without the need for a server 
@@ -35,6 +35,7 @@
 	
 	
 	VERSION HISTORY:
+		1.11 (5/25/2022)	- Fix `periodicCellResets.exemptCellNamesExact` not working correctly for external cells.
 		1.11 (5/25/2022)	- Fixed issue where `resetNormalCellsOnRestart` didn't work on linux. (Thank you, Phoenix_)
 		1.10 (5/2/2022)		- Added method to reset merchant cells specifically.
 		1.09 (4/23/2022)	- Updated to take in changes made by David to new config.recordStoreLoadOrder.
@@ -231,21 +232,24 @@ local resetCellsOnStartup = function()
 		local directory = tes3mp.GetModDir() .. "/cell/"
 		local cells = getCellsArray(directory)
 		
-		local tempMerge = {}
-		for _,cellName in pairs(periodicCellResets.exemptCellNamesExact) do
-			tableHelper.insertValueIfMissing(tempMerge, cellName)
-		end
-		for _,cellName in pairs(periodicCellResets.exemptCellNamesLike) do
-			tableHelper.insertValueIfMissing(tempMerge, cellName)
-		end
 		
 		for _,cellFile in pairs(cells) do
 			
 			local splitFileExtension = cellFile:split(".")
 			local cellName = splitFileExtension[1]
-			
 			local preventDeletion = false
-			for x,BlockedCellName in pairs(tempMerge) do
+
+			-- string.match() does a pattern match that incorrectly handles external cells, meaning cell `-2, 10` will also match `-2, -10`, aswell as ` -2, 104` to `-2, -10`
+			-- This is fine for `periodicCellResets.exemptCellNamesLike`, however not `periodicCellResets.exemptCellNamesExact`.
+			-- So we have to handle them both differently. This also makes tempMerge pointless, so it was removed.
+			for x,BlockedCellName in pairs(periodicCellResets.exemptCellNamesExact) do
+				if string.find(cellName, "%f[%a]" .. BlockedCellName .. "%f[%A]") then
+					preventDeletion = true
+					break
+				end
+			end
+			
+			for x,BlockedCellName in pairs(periodicCellResets.exemptCellNamesLike) do
 				if string.match(cellName, BlockedCellName) then
 					preventDeletion = true
 					break
@@ -276,13 +280,13 @@ local resetCellsOnStartup = function()
 	
 	if resetWorldKillCountsOnRestart ~= nil and resetWorldKillCountsOnRestart == true then
 		local clearedCellKills = 0
-        for refId, killCount in pairs(WorldInstance.data.kills) do
+		for refId, killCount in pairs(WorldInstance.data.kills) do
 			clearedCellKills = clearedCellKills + WorldInstance.data.kills[refId]
-            WorldInstance.data.kills[refId] = 0
-        end
+			WorldInstance.data.kills[refId] = 0
+		end
 
-        WorldInstance:QuicksaveToDrive()
-        print("Total Kills Cleared: "..clearedCellKills)
+		WorldInstance:QuicksaveToDrive()
+		print("Total Kills Cleared: "..clearedCellKills)
 	end
 end
 
