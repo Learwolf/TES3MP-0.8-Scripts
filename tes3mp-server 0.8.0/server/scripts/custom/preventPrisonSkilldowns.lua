@@ -26,7 +26,7 @@ local OnlyAfterMurders = false -- If true, only prevents skill downs if the play
 local trackedBounty = {}
 customEventHooks.registerHandler("OnPlayerBounty", function(eventStatus, pid)
 	
-	if trackedBounty[pid] ~= nil and trackedBounty > 0 and Players[pid].data.fame.bounty == 0 and (not OnlyAfterMurders or trackedBounty >= 1000) then
+	if trackedBounty[pid] ~= nil and trackedBounty[pid] > 0 and Players[pid].data.fame.bounty == 0 and (not OnlyAfterMurders or trackedBounty[pid] >= 1000) then
 		Players[pid].skipPrisonSkills = (os.time() + 10)
 	end
 	trackedBounty[pid] = tableHelper.deepCopy(Players[pid].data.fame.bounty)
