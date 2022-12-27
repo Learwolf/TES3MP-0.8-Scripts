@@ -1,5 +1,5 @@
 --[[
-	Attributer Modifiers
+	Attribute Modifiers
 		version 1.00 (for TES3MP 0.8.1)
 			by Learwolf
 	
