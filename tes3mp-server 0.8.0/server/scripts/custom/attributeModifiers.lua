@@ -30,7 +30,7 @@ attributeModifiers = {}
 -- -- -- -- -- -- -- -- --
 attributeModifiers.config = {
 	
-	maxAllAttributesByLevel = 100 -- This automatically max all attributes once player reached this level. (**Set to 0 to disable this feature.**)
+	maxAllAttributesByLevel = 100, -- This automatically max all attributes once player reached this level. (**Set to 0 to disable this feature.**)
 	includeLuckBonus = true, -- If true, luck will also have the modifier changes from this script applied. If false, luck will always be a 1 times multiplier.
 	
 	useStaticFormula = true, -- If set to true, all attribute multipliers will be set to whatever the `staticAttributeMultiplierValue` value (one line below) is on every level up.
