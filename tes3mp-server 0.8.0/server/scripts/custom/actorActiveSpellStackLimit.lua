@@ -335,27 +335,23 @@ customEventHooks.registerValidator("OnActorSpellsActive", function(eventStatus, 
 									end
 								end
 								
-								packetBuilder.AddActorSpellsActive(uniqueIndex, activeSpellsToReapply, enumerations.spellbook.REMOVE)
-								tes3mp.SendActorSpellsActiveChanges()
-								packetBuilder.AddActorSpellsActive(uniqueIndex, activeSpellsToReapply, enumerations.spellbook.ADD)
-								tes3mp.SendActorSpellsActiveChanges()
 							end
+							
+							local spellsToRedo = activeSpellsToReapply
 							
 							-- Make changes to active incoming spell effects:
 							if storeOverrideChange then
 								for stateSpellId,__ in pairs(data.spellsActive) do
 									data.spellsActive[stateSpellId][1].stackingState = false
 								end
-								
-								packetBuilder.AddActorSpellsActive(uniqueIndex, data.spellsActive, enumerations.spellbook.REMOVE)
-								tes3mp.SendActorSpellsActiveChanges()
-								
-								if reapplySpellsActive then
-									packetBuilder.AddActorSpellsActive(uniqueIndex, data.spellsActive, enumerations.spellbook.ADD)
-									tes3mp.SendActorSpellsActiveChanges()
-								end
+								tableHelper.merge(spellsToRedo, data.spellsActive, true)
 							end
 							
+							packetBuilder.AddActorSpellsActive(uniqueIndex, spellsToRedo, enumerations.spellbook.REMOVE)
+							tes3mp.SendActorSpellsActiveChanges()
+							
+							packetBuilder.AddActorSpellsActive(uniqueIndex, spellsToRedo, enumerations.spellbook.ADD)
+							tes3mp.SendActorSpellsActiveChanges()
 						end
 					
 					end
