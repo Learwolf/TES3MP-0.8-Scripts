@@ -1,11 +1,12 @@
 --[[
 	Constant Effect Summon Fix
-		version 1.00 (For TES3MP 0.8.1)
+		version 1.01 (For TES3MP 0.8.1)
 			by Learwolf
 	
 	DESCRIPTION:
 		This resolves issues with constant effect summons not actually appearing for players.
 		Optional setting to only allow players to summon one of each creature type, instead of as many as they have spells for.
+		Optional setting to only allow the player to have a certain amount of total active summons.
 	
 	INSTALLATION:
 		1) Place this file as `constantEffectSummonFix.lua` inside your TES3MP servers `server\scripts\custom` folder.
@@ -17,6 +18,7 @@
 		5) Save `customScripts.lua` and restart your server.
 
 	VERSION HISTORY:
+		1.01	1/17/2023	-	Limit active summons.
 		1.00	1/16/2023	-	Initial Release.
 		
 --]]
@@ -25,6 +27,7 @@ constantEffectSummonsFix = {}
 
 -- This is the only configuration option:
 local limitSummonedCreaturesByType = true -- If true, forces players to only allow 1 of each creature type, regardless of how many summon spells they create.
+local activeSummonLimit = 4 -- Limit the total amount of summons a player can have active to this value. Set to 0 or less to disable limits.
 
 -- -- -- -- -- -- -- -- -- -- -- -- 
 --==----==----==----==----==----==--
@@ -170,6 +173,47 @@ customEventHooks.registerHandler("OnServerPostInit", function(eventStatus)
 								", refId: " .. summon.summoner.refId)
 						end
 
+						-- Deal with limited number of active summons:
+						local activeSummonCount = 0
+							for x,y in pairs(Players[summonerPid].summons) do
+								activeSummonCount = activeSummonCount + 1
+							end
+							
+							-- If a player runs into an issue where they cannot resummon a summon, note that it is because 
+							-- the spell is still active on their character even though the summon was deleted.
+							if activeSummonLimit > 0 then
+							if Players[summonerPid].summons ~= nil and activeSummonCount >= activeSummonLimit then
+								local uniqueIndexesToClear = {}
+								local uniqueSummonIndexes = {}
+								
+								for summonUniqueIndex, summonRefId in pairs(Players[summonerPid].summons) do
+									table.insert(uniqueSummonIndexes, {uniqueIndex = summonUniqueIndex, refId = summonRefId})
+								end
+								
+								table.sort(uniqueSummonIndexes, function(a,b) return a.uniqueIndex<b.uniqueIndex end)
+
+								if #uniqueSummonIndexes >= activeSummonLimit then
+									
+									local overlimitCount = (#uniqueSummonIndexes - activeSummonLimit) + 1
+									
+									for n=1,overlimitCount do
+										local t = uniqueSummonIndexes[n]
+										if t ~= nil and t.uniqueIndex ~= nil then
+											local cell = logicHandler.GetCellContainingActor(t.uniqueIndex)
+											if cell ~= nil then
+												local cellDescription = cell.description
+												logicHandler.DeleteObject(summonerPid, cellDescription, t.uniqueIndex, true)
+												cell:DeleteObjectData(t.uniqueIndex)
+											end
+											Players[summonerPid].summons[t.uniqueIndex] = nil
+										end
+									end
+									
+								end
+								
+							end
+						end
+						
 						if not preventSave then
 							self.data.objectData[uniqueIndex].summon = summon
 						end
