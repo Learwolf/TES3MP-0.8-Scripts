@@ -1,6 +1,6 @@
 --[[
 	Constant Effect Summon Fix
-		version 1.01 (For TES3MP 0.8.1)
+		version 1.02 (For TES3MP 0.8.1)
 			by Learwolf
 	
 	DESCRIPTION:
@@ -18,6 +18,7 @@
 		5) Save `customScripts.lua` and restart your server.
 
 	VERSION HISTORY:
+		1.02	1/26/2023	-	Resolved an improperly placed check that would crash the server.
 		1.01	1/17/2023	-	Limit active summons.
 		1.00	1/16/2023	-	Initial Release.
 		
@@ -160,6 +161,41 @@ customEventHooks.registerHandler("OnServerPostInit", function(eventStatus)
 									end
 								end
 								
+								-- If a player runs into an issue where they cannot resummon a summon, note that it is because 
+								-- the spell is still active on their character even though the summon was deleted.
+								if activeSummonLimit > 0 then
+									if Players[summonerPid].summons ~= nil and activeSummonCount >= activeSummonLimit then
+										local uniqueIndexesToClear = {}
+										local uniqueSummonIndexes = {}
+										
+										for summonUniqueIndex, summonRefId in pairs(Players[summonerPid].summons) do
+											table.insert(uniqueSummonIndexes, {uniqueIndex = summonUniqueIndex, refId = summonRefId})
+										end
+										
+										table.sort(uniqueSummonIndexes, function(a,b) return a.uniqueIndex<b.uniqueIndex end)
+
+										if #uniqueSummonIndexes >= activeSummonLimit then
+											
+											local overlimitCount = (#uniqueSummonIndexes - activeSummonLimit) + 1
+											
+											for n=1,overlimitCount do
+												local t = uniqueSummonIndexes[n]
+												if t ~= nil and t.uniqueIndex ~= nil then
+													local cell = logicHandler.GetCellContainingActor(t.uniqueIndex)
+													if cell ~= nil then
+														local cellDescription = cell.description
+														logicHandler.DeleteObject(summonerPid, cellDescription, t.uniqueIndex, true)
+														cell:DeleteObjectData(t.uniqueIndex)
+													end
+													Players[summonerPid].summons[t.uniqueIndex] = nil
+												end
+											end
+											
+										end
+										
+									end
+								end
+								
 								if not preventSave then
 									Players[summonerPid].summons[uniqueIndex] = refId
 								end
@@ -175,43 +211,8 @@ customEventHooks.registerHandler("OnServerPostInit", function(eventStatus)
 
 						-- Deal with limited number of active summons:
 						local activeSummonCount = 0
-							for x,y in pairs(Players[summonerPid].summons) do
-								activeSummonCount = activeSummonCount + 1
-							end
-							
-							-- If a player runs into an issue where they cannot resummon a summon, note that it is because 
-							-- the spell is still active on their character even though the summon was deleted.
-							if activeSummonLimit > 0 then
-							if Players[summonerPid].summons ~= nil and activeSummonCount >= activeSummonLimit then
-								local uniqueIndexesToClear = {}
-								local uniqueSummonIndexes = {}
-								
-								for summonUniqueIndex, summonRefId in pairs(Players[summonerPid].summons) do
-									table.insert(uniqueSummonIndexes, {uniqueIndex = summonUniqueIndex, refId = summonRefId})
-								end
-								
-								table.sort(uniqueSummonIndexes, function(a,b) return a.uniqueIndex<b.uniqueIndex end)
-
-								if #uniqueSummonIndexes >= activeSummonLimit then
-									
-									local overlimitCount = (#uniqueSummonIndexes - activeSummonLimit) + 1
-									
-									for n=1,overlimitCount do
-										local t = uniqueSummonIndexes[n]
-										if t ~= nil and t.uniqueIndex ~= nil then
-											local cell = logicHandler.GetCellContainingActor(t.uniqueIndex)
-											if cell ~= nil then
-												local cellDescription = cell.description
-												logicHandler.DeleteObject(summonerPid, cellDescription, t.uniqueIndex, true)
-												cell:DeleteObjectData(t.uniqueIndex)
-											end
-											Players[summonerPid].summons[t.uniqueIndex] = nil
-										end
-									end
-									
-								end
-								
-							end
+						for x,y in pairs(Players[summonerPid].summons) do
+							activeSummonCount = activeSummonCount + 1
 						end
 						
 						if not preventSave then
