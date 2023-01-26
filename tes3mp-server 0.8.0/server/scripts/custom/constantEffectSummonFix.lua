@@ -164,6 +164,13 @@ customEventHooks.registerHandler("OnServerPostInit", function(eventStatus)
 								-- If a player runs into an issue where they cannot resummon a summon, note that it is because 
 								-- the spell is still active on their character even though the summon was deleted.
 								if activeSummonLimit > 0 then
+									
+									-- Deal with limited number of active summons:
+									local activeSummonCount = 0
+									for x,y in pairs(Players[summonerPid].summons) do
+										activeSummonCount = activeSummonCount + 1
+									end
+									
 									if Players[summonerPid].summons ~= nil and activeSummonCount >= activeSummonLimit then
 										local uniqueIndexesToClear = {}
 										local uniqueSummonIndexes = {}
@@ -207,12 +214,6 @@ customEventHooks.registerHandler("OnServerPostInit", function(eventStatus)
 							summon.summoner.uniqueIndex = object.summon.summoner.uniqueIndex
 							tes3mp.LogAppend(enumerations.log.INFO, "- summoned by actor " .. summon.summoner.uniqueIndex ..
 								", refId: " .. summon.summoner.refId)
-						end
-
-						-- Deal with limited number of active summons:
-						local activeSummonCount = 0
-						for x,y in pairs(Players[summonerPid].summons) do
-							activeSummonCount = activeSummonCount + 1
 						end
 						
 						if not preventSave then
