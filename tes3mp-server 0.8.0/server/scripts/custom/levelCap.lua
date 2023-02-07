@@ -22,7 +22,7 @@
 		1.00	-	Initial release.
 --]]
 
-playerLevelCapper {}
+playerLevelCapper = {}
 
 -----------------
 -- Configuration:
