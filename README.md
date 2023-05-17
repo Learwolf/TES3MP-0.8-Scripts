@@ -41,7 +41,7 @@ _____________________________________________
 _____________________________________________
 **defaultChatLocal.lua**
   - This script allows players to talk in local chat by default, and requires players to use `/global InsertMessageTextHere` to speak globally.
-  - `global` chat comimand is customizable.
+  - `global` chat command is customizable.
 
 _____________________________________________
 **drowningRebalance.lua**
