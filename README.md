@@ -1,6 +1,8 @@
 # TES3MP-0.8-Scripts
 A list of my tes3mp server Lua scripts available for public use.
 
+Note that these scripts have been designed and tested for TES3MP 0.8.0 - 0.8.1
+It is unlikely they will work in 0.7.x and lower.
 
 actorActiveSpellStackLimit.lua
   - This (curently in beta) script allows server owners to set active effect limits to the actors (NPCs/Creatures) on their server.
