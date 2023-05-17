@@ -5,45 +5,45 @@ Note that these scripts have been designed and tested for TES3MP 0.8.0 - 0.8.1
 It is unlikely they will work in 0.7.x and lower.
 
 
-
+_____________________________________________
 **actorActiveSpellStackLimit.lua**
   - This (curently in beta) script allows server owners to set active effect limits to the actors (NPCs/Creatures) on their server.
   - Configurable.
 
-
+_____________________________________________
 **attributeModifiers.lua**
   - This script allows server owners to customize their players level up attribute modifiers.
   - Configurable.
 
-
+_____________________________________________
 **constantEffectSummonFix.lua**
   - This resolves issues with constant effect summons not actually appearing for players.
   - Optional setting to only allow players to summon one of each creature type, instead of as many as they have spells for.
   - Optional setting to only allow the player to have a certain amount of total active summons.
   - Configurable.
 
-
+_____________________________________________
 **customMerchantRestock.lua**
   - This script will ensure your designated merchants always have their gold restocked.
   - Add the desired merchant refId's to the `restockingGoldMerchants` table in the script.
 
-
+_____________________________________________
 **dbFix.lua**
   - This script allows server owners to set a level requirement for players to spawn a dark brotherhood assassins.
   - This script also ensures an assassin spawns once (and only once) per each player.
 
-
+_____________________________________________
 **deathdrop.lua**
   - deathdrop was originally created by David-AW for TES3MP 0.7 and ported over per request to TES3MP 0.8 by me.
   - Enforce certain items to drop from a players inventory when they die.
   - Highly configurable.
 
-
+_____________________________________________
 **defaultChatLocal.lua**
   - This script allows players to talk in local chat by default, and requires players to use `/global InsertMessageTextHere` to speak globally.
   - `global` chat comimand is customizable.
 
-
+_____________________________________________
 **drowningRebalance.lua**
   - This script allows server owners to easily modify drowning damage.
   - The default drowning damage is 3 points every second, and does not scale.
@@ -51,20 +51,20 @@ It is unlikely they will work in 0.7.x and lower.
   - A level 1 will take 3 points of drowning damage every second, while a level 50 will take 150.
   - Argonians can be configured to take half damage.
 
-
+_____________________________________________
 **levelCap.lua**
   - This simple script allows server owners to set a level cap for players. Keep in mind, it does not retroactively revert players levels if they have bypassed said cap prior to installing this script.
 
-
+_____________________________________________
 **mwScriptConverter.lua**
   - The purpose of this script is to easily convert custom morrowind scripts into tes3mp custom record scripts via a text file conversion.
   - This script requires in-depth user setup. Please see my tutorial video at: https://youtu.be/AkbDi651a8c
 
-
+_____________________________________________
 **objectPositionFix.lua**
   - A server side method of fixing misplaced objects in the game world.
 
-
+_____________________________________________
 **periodicCellResets.lua**
   - This script allows cells to be periodically reset in game without the need for a server restart.
   - It's based on a certain amount of seconds that pass from the cells initial creation. 
@@ -72,11 +72,11 @@ It is unlikely they will work in 0.7.x and lower.
   - Highly customizable.
   - Configuration allows for specified cells to be exempt from ever resetting.
 
-
+_____________________________________________
 **preventPrisonSkilldowns.lua**
   - This script allows server owners to prevent players from having skill lower from going to prison.
  
- 
+ _____________________________________________
 **quickKeyAddons.lua**
   - This script provides server owners a few additional features related to quick keys.
   - The primary feature being additional Quick Key pages. The number of pages can be customized below in the configuration section.
@@ -85,7 +85,7 @@ It is unlikely they will work in 0.7.x and lower.
   - This script has the option to allow player chat macro functionality via Hotkey items. Hotkeys items can be used from a players inventory or bound and used from the Quick Key list. 
       Hotkeys allow players to bind text (such as chat messages or chat commands) and can then be used at the click of a quick key to instantly run the chat or command. (I.E., a macro.) 
  
- 
+ _____________________________________________
 **respawnAtCellEntry.lua**
   - This script will resurrect a player at cell entry rather than the nearest temple.
 
