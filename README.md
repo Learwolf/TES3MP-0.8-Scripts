@@ -56,6 +56,10 @@ _____________________________________________
   - This simple script allows server owners to set a level cap for players. Keep in mind, it does not retroactively revert players levels if they have bypassed said cap prior to installing this script.
 
 _____________________________________________
+**preventPrisonSkilldowns.lua**
+  - This simple script will ensure any actor who can barter will have max disposition when you attempt to barter with them.
+
+_____________________________________________
 **mwScriptConverter.lua**
   - The purpose of this script is to easily convert custom morrowind scripts into tes3mp custom record scripts via a text file conversion.
   - This script requires in-depth user setup. Please see my tutorial video at: https://youtu.be/AkbDi651a8c
