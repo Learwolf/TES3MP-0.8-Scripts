@@ -168,6 +168,8 @@ customEventHooks.registerValidator("OnPlayerDeath", function(eventStatus, pid)
 			
 			player.data.inventory = {} -- clear inventory data in the files
 			player.data.equipment = {}
+			player:LoadEquipment()
+			player:LoadInventory()
 			
 			tes3mp.ClearInventoryChanges(pid) -- clear inventory data on the server
 			tes3mp.SendInventoryChanges(pid)
