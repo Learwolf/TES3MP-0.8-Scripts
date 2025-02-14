@@ -1,6 +1,6 @@
 --[[
 	Lear's Periodic Cell Reset Script
-		version 1.12 (for TES3MP 0.8 & 0.8.1)
+		version 1.13 (for TES3MP 0.8 & 0.8.1)
 	
 	DESCRIPTION:
 	This simple script allows cells to be periodically reset in game without the need for a server 
@@ -35,6 +35,7 @@
 	
 	
 	VERSION HISTORY:
+		1.13 (2/13/2025)	- Fixed an issue with `periodicCellResets.exemptCellNamesLike` table not working correctly. It should now work as intended. No longer need to delete the `cellResetTimers.json` file when making changes to this script.
 		1.12 (5/29/2022)	- Fix `periodicCellResets.exemptCellNamesExact` not working correctly for external cells.
 		1.11 (5/25/2022)	- Fixed issue where `resetNormalCellsOnRestart` didn't work on linux. (Thank you, Phoenix_)
 		1.10 (5/2/2022)		- Added method to reset merchant cells specifically.
@@ -90,11 +91,11 @@ periodicCellResets.exemptCellNamesExact = { -- Exact cell names included in this
 	"-1, -9",
 	"-1, -10",
 	"-2, -9",
-	"-2, -10"
+	"-2, -10",
 	
 }
 
--- Similar cell names:interiorCellExemption
+-- Similar cell names:
 periodicCellResets.exemptCellNamesLike = { -- Cell names that match strings included in this list are not affected by the automated cell reset times in this script.
 	
 	"$custom_", -- Custom generated cells.
@@ -102,8 +103,7 @@ periodicCellResets.exemptCellNamesLike = { -- Cell names that match strings incl
 	-- Prevent the following cells to prevent bugs:
 	"Seyda Neen, Census and Excise Office",
 	
-	
-	-- "Seyda Neen" -- Anything with Seyda Neen in the name, would be exempt from resets if you uncomment this line.
+	-- "Seyda Neen", -- Anything with Seyda Neen in the name would be exempt from resets if you uncomment this line.
 	
 }
 
@@ -250,7 +250,7 @@ local resetCellsOnStartup = function()
 			end
 			
 			for x,BlockedCellName in pairs(periodicCellResets.exemptCellNamesLike) do
-				if string.match(cellName, BlockedCellName) then
+				if string.find(cellName, BlockedCellName, 1, true) then
 					preventDeletion = true
 					break
 				end
@@ -331,7 +331,7 @@ local nameLikeCellExemptions = function(cellDescription)
 	for _,exemptCellName in pairs(periodicCellResets.exemptCellNamesLike) do
 		
 		local exemptCell = string.lower(exemptCellName)
-		if string.match(currentCell, exemptCell) then
+		if string.find(currentCell, exemptCell, 1, true) then
 			return true
 		end
 		
@@ -686,36 +686,44 @@ periodicCellResets.UpdateResetTimers = function()
 							
 							if LoadedCells[cellDescription] == nil then
 								
-								local unloadAtEnd
-								-- If the desired cell is not loaded, load it temporarily
-								if LoadedCells[cellDescription] == nil then
-									logicHandler.LoadCell(cellDescription)
-									unloadAtEnd = true
+								local skipDeletion = false
+								if tableHelper.containsValue(periodicCellResets.exemptCellNamesExact, cellDescription) or nameLikeCellExemptions(cellDescription) or interiorCellExemption(cellDescription) then
+									skipDeletion = true
 								end
+								
+								if not skipDeletion then
+									local unloadAtEnd
+									-- If the desired cell is not loaded, load it temporarily
+									if LoadedCells[cellDescription] == nil then
+										logicHandler.LoadCell(cellDescription)
+										unloadAtEnd = true
+									end
 
-								LoadedCells[cellDescription].isResetting = true
-								LoadedCells[cellDescription].data.objectData = {}
-								LoadedCells[cellDescription].data.packets = {}
-								LoadedCells[cellDescription]:EnsurePacketTables()
-								LoadedCells[cellDescription].data.loadState.hasFullActorList = false
-								LoadedCells[cellDescription].data.loadState.hasFullContainerData = false
-								LoadedCells[cellDescription]:ClearRecordLinks()
+									LoadedCells[cellDescription].isResetting = true
+									LoadedCells[cellDescription].data.objectData = {}
+									LoadedCells[cellDescription].data.packets = {}
+									LoadedCells[cellDescription]:EnsurePacketTables()
+									LoadedCells[cellDescription].data.loadState.hasFullActorList = false
+									LoadedCells[cellDescription].data.loadState.hasFullContainerData = false
+									LoadedCells[cellDescription]:ClearRecordLinks()
 
-								-- Unload a temporarily loaded cell
-								if unloadAtEnd then
-									logicHandler.UnloadCell(cellDescription)
+									-- Unload a temporarily loaded cell
+									if unloadAtEnd then
+										logicHandler.UnloadCell(cellDescription)
+									end
+
+									tes3mp.ClearCellsToReset()
+									tes3mp.AddCellToReset(cellDescription)
+									tes3mp.SendCellReset(pid, true)
 								end
-
-								tes3mp.ClearCellsToReset()
-								tes3mp.AddCellToReset(cellDescription)
-								tes3mp.SendCellReset(pid, true)
 								
 								cellResetTimers[cellDescription] = nil
 								
-								removeCustomRecordsFromResetCell(cellDescription) -- Remove custom record links from a cell when the cell is reset.
+								if not skipDeletion then
+									removeCustomRecordsFromResetCell(cellDescription) -- Remove custom record links from a cell when the cell is reset.
+								end
 								
 								doSave = true
-								
 							end
 						end
 					
