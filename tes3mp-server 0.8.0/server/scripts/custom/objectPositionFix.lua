@@ -1,6 +1,6 @@
 --[[
 	Object Position Fix
-		version 1.00
+		version 1.01
 	
 	DESCRIPTION/INSTRUCTIONS:
 		Lets face it. Morrowind has some misplaced static objects. So here's a simple means to fix it so your players no longer lose immersion.
@@ -26,6 +26,7 @@
 	
 	
 	VERSION HISTORY:
+		1.01	5/27/2025	-	Made a small change as a work around for servers that are using a version of logicHandler.lua that acts weird when logicHandler.RunConsoleCommandOnObject is called for single players instead of "forEveryone".
 		1.00	3/21/2023	-	Initial Release.
 	
 --]]
@@ -60,12 +61,12 @@ local checkForObjectRepositions = function(pid)
 				if uniqueIndex ~= nil then
 					if obj.pos ~= nil then
 						for pos,coord in pairs(obj.pos) do
-							logicHandler.RunConsoleCommandOnObject(pid, "setpos "..tostring(pos).." "..coord, cellDescription, uniqueIndex)
+							logicHandler.RunConsoleCommandOnObject(pid, "setpos "..tostring(pos).." "..coord, cellDescription, uniqueIndex, true)
 						end
 					end
 					if obj.rot ~= nil then
 						for rot,coord in pairs(obj.rot) do
-							logicHandler.RunConsoleCommandOnObject(pid, "setangle "..tostring(rot).." "..coord, cellDescription, uniqueIndex)
+							logicHandler.RunConsoleCommandOnObject(pid, "setangle "..tostring(rot).." "..coord, cellDescription, uniqueIndex, true)
 						end
 					end
 				end
