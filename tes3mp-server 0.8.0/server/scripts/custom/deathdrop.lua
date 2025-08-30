@@ -26,6 +26,7 @@ local dropItemsFromPVEInSafeZone = true -- Do you want players to drop their ite
 local dropItemsFromSuicide = true -- This could mean player died from magic, or committed suicide.
 local dropItemsFromSuicideInSafeZone = false -- Can be used as a way around SafeZone if enabled.
 local dropItemsWhenJailed = true -- When a player spawn kills their items will drop before being sent to jail
+local dropItemsRefIdsToNotDrop = {} -- examples: {"gold_001","misc_uni_pillow_unique"} -- refIds you DON'T want to drop from the players inventory on death. ** MAKE SURE THEY ARE ALL LOWERCASED **
 
 local jailTimeInMins = 5
 local jailedMsg = "You were sent to jail for killing a player in a safezone, your sentence is "..jailTimeInMins.." minutes.\n"
@@ -166,13 +167,23 @@ customEventHooks.registerValidator("OnPlayerDeath", function(eventStatus, pid)
 			
 			local temp = tableHelper.deepCopy(player.data.inventory)
 			
-			player.data.inventory = {} -- clear inventory data in the files
+			if dropItemsRefIdsToNotDrop ~= nil and not tableHelper.isEmpty(dropItemsRefIdsToNotDrop) then
+				local inventoryToKeep = {}
+				for i=1,#temp do
+					local itm = temp[i]
+					if itm ~= nil and itm.refId ~= nil and tableHelper.containsValue(dropItemsRefIdsToNotDrop, itm.refId) then
+						table.insert(inventoryToKeep, itm)
+						temp[i] = nil
+					end
+				end
+				player.data.inventory = inventoryToKeep
+			else
+				player.data.inventory = {} -- clear inventory data in the files
+			end
+			
 			player.data.equipment = {}
 			player:LoadEquipment()
 			player:LoadInventory()
-			
-			tes3mp.ClearInventoryChanges(pid) -- clear inventory data on the server
-			tes3mp.SendInventoryChanges(pid)
 
 			for index,item in pairs(temp) do
 				
