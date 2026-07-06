@@ -244,9 +244,35 @@ local isPermanentRecord = function(recordId)
     return false
 end
 
+local ensurePlayerCustomVariables = function(pid)
+	if Players[pid] == nil then return end
+	if Players[pid].data == nil then Players[pid].data = {} end
+	if Players[pid].data.customVariables == nil then Players[pid].data.customVariables = {} end
+end
+
+local saveInventoryChange = function(pid, action, refId, count, charge, enchantmentCharge, soul)
+	if Players[pid] == nil then return end
+
+	local playerPacket = {
+		action = action,
+		inventory = {
+			{
+				refId = refId,
+				count = count,
+				charge = charge,
+				enchantmentCharge = enchantmentCharge,
+				soul = soul
+			}
+		}
+	}
+
+	Players[pid]:SaveInventory(playerPacket)
+end
+
 --pouchItemAdd(pid, refId, count, soul, charge, enchantmentCharge)
 pouchItemAdd = function(pid, refId, count, soul, charge, enchantmentCharge)
 	
+	ensurePlayerCustomVariables(pid)
 	Players[pid].data.customVariables.allowAddItem = true -- This allows the player to bypass the block enforced within morePlayerFuncs.lua's Player:SaveInventory()
 	
 	if refId == nil then return end
@@ -263,7 +289,7 @@ pouchItemAdd = function(pid, refId, count, soul, charge, enchantmentCharge)
 		local cellDescription = tes3mp.GetCell(pid)
         local cell = LoadedCells[cellDescription]
 		local recordType = getRecordTypeByRecordId(refId)
-		if RecordStores[recordType] ~= nil and cell ~= nil then
+		if recordType ~= nil and RecordStores[recordType] ~= nil and cell ~= nil then
 			local recordStore = RecordStores[recordType]
 			for _, visitorPid in pairs(cell.visitors) do
 				recordStore:LoadGeneratedRecords(visitorPid, recordStore.data.generatedRecords, {refId})
@@ -275,7 +301,7 @@ pouchItemAdd = function(pid, refId, count, soul, charge, enchantmentCharge)
 	tes3mp.SetInventoryChangesAction(pid, enumerations.inventory.ADD)
 	tes3mp.AddItemChange(pid, refId, count, charge, enchantmentCharge, soul)
 	tes3mp.SendInventoryChanges(pid)
-	Players[pid]:SaveInventory()
+	saveInventoryChange(pid, enumerations.inventory.ADD, refId, count, charge, enchantmentCharge, soul)
 end
 
 --pouchItemRemove(pid, refId, count, soul, charge, enchantmentCharge)
@@ -295,7 +321,7 @@ pouchItemRemove = function(pid, refId, count, soul, charge, enchantmentCharge)
 	tes3mp.SetInventoryChangesAction(pid, enumerations.inventory.REMOVE)
 	tes3mp.AddItemChange(pid, refId, count, charge, enchantmentCharge, soul)
 	tes3mp.SendInventoryChanges(pid)
-	Players[pid]:SaveInventory()
+	saveInventoryChange(pid, enumerations.inventory.REMOVE, refId, count, charge, enchantmentCharge, soul)
 	
 	-- If it's generated, make sure it remains linked with the player so it isnt accidentally deleted by the server:
 	if logicHandler.IsGeneratedRecord(refId) then
@@ -393,8 +419,9 @@ pouches.fillItemPouch = function(pid, pouchRefId)
 			local targetDB = jsonInterface.load("custom/"..pouchData.pouchDB..".json")
 			
 			for item,_ in pairs(pInv) do
-				local iRefId = pInv[item].refId
-				if tableHelper.containsValue(pouchData.allowedRefIds, iRefId:lower()) then
+				local invItem = pInv[item]
+				local iRefId = invItem ~= nil and invItem.refId or nil
+				if iRefId ~= nil and tableHelper.containsValue(pouchData.allowedRefIds, iRefId:lower()) then
 					local giveAmount = Players[pid].data.inventory[item].count
 					depositAmount = depositAmount + giveAmount
 					
@@ -435,7 +462,7 @@ pouches.fillItemPouch = function(pid, pouchRefId)
 						
 						local requiresEnchantment = pouchData.customRecordRequiresEnchantment
 						
-						if Players[pid].data.inventory[item] ~= nil then
+						if Players[pid].data.inventory[item] ~= nil and RecordStores[pouchData.customRecordType] ~= nil then
 							local storeType = pouchData.customRecordType
 							local recordType = RecordStores[storeType].data
 							
@@ -582,6 +609,7 @@ end)
 
 -- Do something when item is used:
 pouches.OnPlayerItemUseValidator = function(eventStatus, pid, itemRefId)
+	if itemRefId == nil then return end
 	for refId,pouchData in pairs(pouchConfig) do
 		if refId:lower() == itemRefId:lower() then
 			pouches.pouchUsedMenu(pid, itemRefId)
@@ -625,7 +653,7 @@ local loginFunction = function(pid)
 	end
 end
 
-customEventHooks.registerHandler("OnPlayerAuthentified", function(eventStatus, pid)
+customEventHooks.registerHandler("OnPlayerAuthenticated", function(eventStatus, pid)
 	loginFunction(pid)
 end)
 
